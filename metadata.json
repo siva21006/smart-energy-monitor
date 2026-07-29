@@ -1,0 +1,6 @@
+{
+  "name": "Smart Energy Monitor",
+  "description": "Smart AI-powered energy monitoring dashboard with Gemini OCR electricity bill scanning, regional tariff calculations, Scikit forecast prediction, and downloadable PDF reports.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
