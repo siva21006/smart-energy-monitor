@@ -149,7 +149,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onAuthSuccess }) => {
             </button>
           </p>
         </div>
-      </div>
+      </div\
     </div>
   );
 };
