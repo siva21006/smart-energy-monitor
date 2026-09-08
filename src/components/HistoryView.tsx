@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { BillRecord, UserProfile, PredictionResult } from '../types';
 import { generatePdfReport } from '../lib/pdfReportGenerator';
+import { formatDate } from '../lib/dateUtils';
 
 interface HistoryViewProps {
   user: UserProfile;
@@ -45,7 +46,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
         <div>
           <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Usage History</h1>
           <p className="text-slate-500 text-sm mt-0.5">
-            A complete audit log of all scanned and logged electricity bills for {user.name}
+            View your previous electricity bills and usage.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
@@ -80,7 +81,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
           <div>
-            <p className="text-xs font-semibold text-slate-400 uppercase">Total Bills Logged</p>
+            <p className="text-xs font-semibold text-slate-400 uppercase">Bills Added</p>
             <p className="text-2xl font-bold text-slate-900">{records.length} Bills</p>
           </div>
           <div className="p-2.5 bg-slate-100 text-slate-600 rounded-xl">
@@ -90,7 +91,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
 
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
           <div>
-            <p className="text-xs font-semibold text-slate-400 uppercase">Average Consumption</p>
+            <p className="text-xs font-semibold text-slate-400 uppercase">Average Monthly Usage</p>
             <p className="text-2xl font-bold text-emerald-600">{avgUnits} kWh / mo</p>
           </div>
           <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl">
@@ -100,7 +101,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
 
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
           <div>
-            <p className="text-xs font-semibold text-slate-400 uppercase">Cumulative Expenses</p>
+            <p className="text-xs font-semibold text-slate-400 uppercase">Total Amount</p>
             <p className="text-2xl font-bold text-slate-900">₹{totalAmount.toLocaleString('en-IN')}</p>
           </div>
           <div className="p-2.5 bg-sky-50 text-sky-600 rounded-xl">
@@ -112,15 +113,15 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
       {/* Data Table */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
-          <h3 className="font-bold text-slate-800 text-sm">Detailed Bill Audit Trail</h3>
-          <span className="text-xs text-slate-500">{records.length} entries recorded</span>
+          <h3 className="font-bold text-slate-800 text-sm">Bill History</h3>
+          <span className="text-xs text-slate-500">{records.length} bills</span>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-sm">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-100/60 text-slate-600 font-semibold text-xs tracking-wider uppercase">
-                <th className="p-4">Scan Date</th>
+                <th className="p-4">Date</th>
                 <th className="p-4">Billing Period</th>
                 <th className="p-4">Units (kWh)</th>
                 <th className="p-4">Billed Amount (₹)</th>
@@ -133,7 +134,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
               {records.length > 0 ? (
                 records.map((record) => (
                   <tr key={record.id} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="p-4 font-medium text-slate-900">{record.scanDate}</td>
+                    <td className="p-4 font-medium text-slate-900">{formatDate(record.billingDate || record.scanDate)}</td>
                     <td className="p-4 text-slate-600">{record.billingPeriod || 'Monthly'}</td>
                     <td className="p-4 font-bold text-emerald-700">{record.units} kWh</td>
                     <td className="p-4 font-semibold text-slate-900">₹{record.amount.toLocaleString('en-IN')}</td>
@@ -158,7 +159,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
               ) : (
                 <tr>
                   <td colSpan={7} className="p-8 text-center text-slate-400">
-                    No billing records logged yet. Use the Scan Bill tool to add your first bill!
+                    No bills added yet. Use the Add Bill tool to add your first bill!
                   </td>
                 </tr>
               )}

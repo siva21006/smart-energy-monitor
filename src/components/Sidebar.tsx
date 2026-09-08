@@ -32,9 +32,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'upload', label: 'Scan New Bill', icon: ScanLine },
+    { id: 'upload', label: 'Add Bill', icon: ScanLine },
     { id: 'history', label: 'Usage History', icon: History },
-    { id: 'setup', label: 'Regional Setup', icon: MapPin },
+    { id: 'setup', label: 'Electricity Details', icon: MapPin },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
@@ -73,7 +73,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <div>
                 <h1 className="font-bold text-xl tracking-wide text-white">EnergyApp</h1>
                 <p className="text-xs text-emerald-400 font-medium flex items-center gap-1">
-                  <Sparkles className="w-3 h-3" /> Smart AI Monitor
+                  <Sparkles className="w-3 h-3" /> Energy Monitor
                 </p>
               </div>
             </div>

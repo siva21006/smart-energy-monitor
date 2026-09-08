@@ -71,7 +71,7 @@ export const RegionalSetupView: React.FC<RegionalSetupViewProps> = ({
           <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto text-2xl border border-emerald-200">
             📍
           </div>
-          <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">Regional Setup</h2>
+          <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">Electricity Details</h2>
           <p className="text-slate-500 text-xs max-w-sm mx-auto">
             Select your Indian State, DISCOM Electricity Board, and Billing Cycle for precise tariff slab calculations.
           </p>
@@ -130,37 +130,44 @@ export const RegionalSetupView: React.FC<RegionalSetupViewProps> = ({
               onChange={(e) => setSelectedCycle(e.target.value as 'Monthly' | 'Bi-Monthly')}
               className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-medium focus:ring-2 focus:ring-emerald-500 focus:bg-white outline-none text-sm"
             >
-              <option value="Bi-Monthly">Bi-Monthly (Every 2 Months) — Standard for TN / Kerala / Gujarat</option>
-              <option value="Monthly">Monthly (Every Month) — Standard for Karnataka / Maharashtra / Delhi</option>
+              <option value="Bi-Monthly">Every 2 months</option>
+              <option value="Monthly">Monthly</option>
             </select>
           </div>
 
           {/* Tariff Info Box */}
-          <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs space-y-1.5 text-slate-600">
-            <p className="font-bold text-slate-800 flex items-center gap-1">
-              <Info className="w-3.5 h-3.5 text-emerald-600" /> Tariff Structure Applied ({selectedCycle}):
+          <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs space-y-2 text-slate-600">
+            <p className="font-bold text-emerald-700 flex items-center gap-1.5">
+              <CheckCircle2 className="w-4 h-4" /> Bill calculation is configured for your selected electricity board.
             </p>
-            {selectedState.includes('Tamil Nadu') && (
-              <p>• TANGEDCO 2-month cycle: 0-100 units free (subsidy) | 101-200: ₹4.50 | 201-400: ₹6.00 | 401-500: ₹8.00 | &gt;500: ₹9.00/unit</p>
-            )}
-            {selectedState.includes('Kerala') && (
-              <p>• KSEB 2-month cycle: 0-100: ₹3.25 | 101-200: ₹4.05 | 201-300: ₹5.10 | 301-400: ₹6.90 | &gt;500: ₹8.50/unit</p>
-            )}
-            {selectedState.includes('Gujarat') && (
-              <p>• Torrent/GUVNL 2-month cycle: 0-100: ₹3.05 | 101-250: ₹3.50 | &gt;250: ₹5.20/unit</p>
-            )}
-            {selectedState.includes('Karnataka') && (
-              <p>• BESCOM 1-month cycle: 0-100: ₹4.75 | 101-200: ₹7.00 | &gt;200: ₹9.00/unit + Fixed Charges</p>
-            )}
-            {selectedState.includes('Maharashtra') && (
-              <p>• MSEDCL 1-month cycle: 0-100: ₹5.50 | 101-300: ₹9.00 | 301-500: ₹12.00 | &gt;500: ₹14.00/unit</p>
-            )}
-            {selectedState.includes('Delhi') && (
-              <p>• BSES 1-month cycle: 0-200 units free (100% subsidy) | 201-400: ₹4.50 | 401-800: ₹6.50/unit</p>
-            )}
-            {!['Tamil Nadu', 'Kerala', 'Gujarat', 'Karnataka', 'Maharashtra', 'Delhi'].some((s) => selectedState.includes(s)) && (
-              <p>• Progressive tiered slab structure with base subsidy and tier multipliers.</p>
-            )}
+            <details className="mt-2 group">
+              <summary className="cursor-pointer text-emerald-600 hover:text-emerald-700 font-semibold select-none inline-flex items-center gap-1">
+                View tariff details
+              </summary>
+              <div className="mt-3 pl-1 space-y-1.5 border-l-2 border-emerald-100">
+                {selectedState.includes('Tamil Nadu') && (
+                  <p>• TANGEDCO 2-month cycle: 0-100 units free (subsidy) | 101-200: ₹4.50 | 201-400: ₹6.00 | 401-500: ₹8.00 | &gt;500: ₹9.00/unit</p>
+                )}
+                {selectedState.includes('Kerala') && (
+                  <p>• KSEB 2-month cycle: 0-100: ₹3.25 | 101-200: ₹4.05 | 201-300: ₹5.10 | 301-400: ₹6.90 | &gt;500: ₹8.50/unit</p>
+                )}
+                {selectedState.includes('Gujarat') && (
+                  <p>• Torrent/GUVNL 2-month cycle: 0-100: ₹3.05 | 101-250: ₹3.50 | &gt;250: ₹5.20/unit</p>
+                )}
+                {selectedState.includes('Karnataka') && (
+                  <p>• BESCOM Monthly: 0-50 units: ₹4.15 | 51-100: ₹5.60 | &gt;100: ₹7.15/unit (Gruha Jyoti applicable if eligible)</p>
+                )}
+                {selectedState.includes('Maharashtra') && (
+                  <p>• MSEDCL Monthly: 0-100 units: ₹3.46 | 101-300: ₹7.43 | 301-500: ₹10.32 | &gt;500: ₹11.71/unit</p>
+                )}
+                {selectedState.includes('Delhi') && (
+                  <p>• BSES/Tata Monthly: 0-200 units free (subsidy) | 201-400: ₹4.50 | 401-800: ₹6.50 | &gt;800: ₹7.00/unit</p>
+                )}
+                {!['Tamil Nadu', 'Kerala', 'Gujarat', 'Karnataka', 'Maharashtra', 'Delhi'].some((s) => selectedState.includes(s)) && (
+                  <p>• National Average Tariff Fallback applied for {selectedState}. Exact state slab rules will be updated soon.</p>
+                )}
+              </div>
+            </details>
           </div>
 
           {message && (

@@ -114,7 +114,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         <div className="space-y-4">
           <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
             <MapPin className="w-5 h-5 text-emerald-600" />
-            <h2 className="text-lg font-bold text-slate-900">📍 Regional Tariff & Billing Cycle</h2>
+            <h2 className="text-lg font-bold text-slate-900">📍 Electricity Bill Settings</h2>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">
@@ -172,16 +172,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         <div className="space-y-4">
           <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
             <Bell className="w-5 h-5 text-amber-500" />
-            <h2 className="text-lg font-bold text-slate-900">🔔 Smart AI Budget Alerts</h2>
+            <h2 className="text-lg font-bold text-slate-900">🔔 Budget Alerts</h2>
           </div>
 
           <p className="text-xs text-slate-500 leading-relaxed">
-            If the prediction engine forecasts a bill higher than your budget threshold, the dashboard will flash an automated alert.
+            We'll alert you when your estimated bill is higher than your budget.
           </p>
 
           <div className="max-w-md pt-2">
             <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Maximum Budget Limit (₹)
+              Budget (₹)
             </label>
             <div className="relative">
               <span className="absolute left-3 top-3 text-slate-400 font-medium text-sm">₹</span>
@@ -200,7 +200,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/80 flex items-center justify-between text-xs text-slate-600">
           <div className="flex items-center gap-2">
             <ShieldCheck className="w-4 h-4 text-emerald-600" />
-            <span>Active Config: <strong>{selectedState}</strong> ({selectedBoard}) — <strong>{billingCycle} Cycle</strong></span>
+            <span>Your bill settings: <strong>{selectedState}</strong> · <strong>{selectedBoard}</strong> · <strong>{billingCycle}</strong></span>
           </div>
         </div>
 

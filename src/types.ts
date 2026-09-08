@@ -18,6 +18,9 @@ export interface BillRecord {
   id: string;
   userId: string;
   scanDate: string;
+  billingDate: string;
+  billingPeriodStart?: string;
+  billingPeriodEnd?: string;
   billingPeriod: string;
   billingCycle?: 'Monthly' | 'Bi-Monthly';
   units: number;

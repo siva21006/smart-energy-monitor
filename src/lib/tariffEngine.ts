@@ -27,39 +27,38 @@ export function calculateTariff(
   if (cleanState.includes('Tamil Nadu')) {
     // TANGEDCO / TNEB LT-1A Domestic Tariff (Bi-Monthly Standard)
     const biMonthlyUnits = effectiveCycle === 'Bi-Monthly' ? safeUnits : safeUnits * 2;
-    taxRate = 0.05;
+    taxRate = 0;
 
     let biEnergy = 0;
     let biFixed = 0;
 
-    if (biMonthlyUnits <= 100) {
-      biEnergy = 0;
-      slabText = `0-100 Units (${effectiveCycle}: Free Subsidy)`;
-      biFixed = 0;
-    } else if (biMonthlyUnits <= 200) {
-      biEnergy = (biMonthlyUnits - 100) * 4.5;
-      slabText = `101-200 Units (${effectiveCycle}: ₹4.50/kWh)`;
-      biFixed = 0;
-    } else if (biMonthlyUnits <= 400) {
-      biEnergy = 100 * 4.5 + (biMonthlyUnits - 200) * 6.0;
-      slabText = `201-400 Units (${effectiveCycle}: ₹6.00/kWh)`;
-      biFixed = 0;
-    } else if (biMonthlyUnits <= 500) {
-      biEnergy = 100 * 4.5 + 200 * 6.0 + (biMonthlyUnits - 400) * 8.0;
-      slabText = `401-500 Units (${effectiveCycle}: ₹8.00/kWh)`;
-      biFixed = 0;
-    } else if (biMonthlyUnits <= 600) {
-      biEnergy = 100 * 4.5 + 200 * 6.0 + 100 * 8.0 + (biMonthlyUnits - 500) * 9.0;
-      slabText = `501-600 Units (${effectiveCycle}: ₹9.00/kWh)`;
-      biFixed = 50;
-    } else if (biMonthlyUnits <= 800) {
-      biEnergy = 100 * 4.5 + 200 * 6.0 + 100 * 8.0 + 100 * 9.0 + (biMonthlyUnits - 600) * 10.0;
-      slabText = `601-800 Units (${effectiveCycle}: ₹10.00/kWh)`;
-      biFixed = 50;
+    biFixed = biMonthlyUnits <= 500 ? 0 : 50;
+
+    if (biMonthlyUnits <= 500) {
+      if (biMonthlyUnits <= 200) {
+        biEnergy = 0;
+        slabText = `0-200 Units (Free Subsidy)`;
+      } else if (biMonthlyUnits <= 400) {
+        biEnergy = (biMonthlyUnits - 200) * 4.70;
+        slabText = `201-400 Units • ₹4.70/kWh`;
+      } else {
+        biEnergy = 200 * 4.70 + (biMonthlyUnits - 400) * 6.30;
+        slabText = `401-500 Units • ₹6.30/kWh`;
+      }
     } else {
-      biEnergy = 100 * 4.5 + 200 * 6.0 + 100 * 8.0 + 100 * 9.0 + 200 * 10.0 + (biMonthlyUnits - 800) * 11.0;
-      slabText = `800+ Units High Tier (${effectiveCycle}: ₹11.00/kWh)`;
-      biFixed = 50;
+      if (biMonthlyUnits <= 600) {
+        biEnergy = 300 * 5.60 + 100 * 6.30 + (biMonthlyUnits - 500) * 8.40;
+        slabText = `501-600 Units • ₹8.40/kWh`;
+      } else if (biMonthlyUnits <= 800) {
+        biEnergy = 300 * 5.60 + 100 * 6.30 + 100 * 8.40 + (biMonthlyUnits - 600) * 9.45;
+        slabText = `601-800 Units • ₹9.45/kWh`;
+      } else if (biMonthlyUnits <= 1000) {
+        biEnergy = 300 * 5.60 + 100 * 6.30 + 100 * 8.40 + 200 * 9.45 + (biMonthlyUnits - 800) * 10.50;
+        slabText = `801-1000 Units • ₹10.50/kWh`;
+      } else {
+        biEnergy = 300 * 5.60 + 100 * 6.30 + 100 * 8.40 + 200 * 9.45 + 200 * 10.50 + (biMonthlyUnits - 1000) * 11.55;
+        slabText = `1000+ Units • ₹11.55/kWh`;
+      }
     }
 
     if (effectiveCycle === 'Bi-Monthly') {
@@ -68,6 +67,7 @@ export function calculateTariff(
     } else {
       energyCharge = biEnergy / 2;
       fixedCharge = biFixed / 2;
+      slabText += ' (Monthly Estimate)';
     }
   } else if (cleanState.includes('Kerala')) {
     // KSEB Domestic Tariff (Bi-Monthly Standard)

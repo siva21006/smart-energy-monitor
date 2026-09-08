@@ -2,7 +2,6 @@ import express from 'express';
 import path from 'path';
 import { GoogleGenAI, Type } from '@google/genai';
 import { calculateTariff, calculateForecast } from './src/lib/tariffEngine.js';
-import { formatBillingPeriod } from './src/lib/dateUtils.js';
 import { BillRecord, UserProfile } from './src/types.js';
 import { createServer as createViteServer } from 'vite';
 
@@ -478,6 +477,10 @@ app.post('/api/bills/reset', (req, res) => {
   res.json({ success: true, records: [] });
 });
 
+import { calculateTariff, calculateForecast } from './src/lib/tariffEngine.js';
+import { formatBillingPeriod } from './src/lib/dateUtils.js';
+
+// ... other imports
 
 // 3. Forecasting & ML Analytics
 app.get('/api/forecast', (req, res) => {
@@ -652,23 +655,10 @@ async function startServer() {
       appType: 'spa',
     });
     app.use(vite.middlewares);
-    
-    // Explicitly serve index.html in dev mode
-    app.use(async (req, res, next) => {
-      try {
-        const fs = await import('fs');
-        let template = fs.readFileSync(path.resolve(process.cwd(), 'index.html'), 'utf-8');
-        template = await vite.transformIndexHtml(req.originalUrl, template);
-        res.status(200).set({ 'Content-Type': 'text/html' }).end(template);
-      } catch (e) {
-        vite.ssrFixStacktrace(e as Error);
-        next(e);
-      }
-    });
   } else {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
-    app.use((req, res) => {
+    app.get('*', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }
