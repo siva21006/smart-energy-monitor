@@ -7,7 +7,8 @@ import {
   AlertTriangle, 
   CheckCircle2, 
   BrainCircuit,
-  ScanLine
+  ScanLine,
+  Loader2
 } from 'lucide-react';
 import { 
   ResponsiveContainer, 
