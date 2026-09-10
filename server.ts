@@ -4,7 +4,6 @@ import { GoogleGenAI, Type } from '@google/genai';
 import { calculateTariff, calculateForecast } from './src/lib/tariffEngine.js';
 import { formatBillingPeriod } from './src/lib/dateUtils.js';
 import { BillRecord, UserProfile } from './src/types.js';
-import { createServer as createViteServer } from 'vite';
 import cookieParser from 'cookie-parser';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
@@ -613,6 +612,7 @@ Generate a structured JSON energy insight:
 // Vite & Production Static Handling
 async function startServer() {
   if (process.env.NODE_ENV !== 'production') {
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
