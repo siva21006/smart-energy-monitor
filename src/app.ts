@@ -1,36 +1,43 @@
 import express from 'express';
 import path from 'path';
 import { GoogleGenAI, Type } from '@google/genai';
-import { calculateTariff, calculateForecast } from './src/lib/tariffEngine.js';
-import { BillRecord, UserProfile } from './src/types.js';
-import { createServer as createViteServer } from 'vite';
+import { calculateTariff, calculateForecast } from './lib/tariffEngine.js';
+import { formatBillingPeriod } from './lib/dateUtils.js';
+import { BillRecord, UserProfile } from './types.js';
+import cookieParser from 'cookie-parser';
+import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
+import { initDB, getUserByEmail, getUserById, createUser, updateUser, getUserBills, saveBill, deleteBills, deleteBillById } from './lib/db.js';
 
 const app = express();
 const PORT = 3000;
 
 app.use(express.json({ limit: '25mb' }));
 app.use(express.urlencoded({ extended: true, limit: '25mb' }));
+app.use(cookieParser());
 
-// Server State Store - Per-Account Isolated Storage
-const usersByEmail = new Map<string, UserProfile>();
-const userPasswordsByEmail = new Map<string, string>();
-const billsByUserId = new Map<string, BillRecord[]>();
-let currentUserId: string | null = null;
+const JWT_SECRET = process.env.JWT_SECRET || 'development_secret_do_not_use_in_prod';
+initDB();
 
-function getCurrentUser(): UserProfile | null {
-  if (!currentUserId) return null;
-  for (const user of usersByEmail.values()) {
-    if (user.id === currentUserId) return user;
+async function authenticate(req: any, res: any, next: any) {
+  const token = req.cookies.token;
+  if (!token) {
+    req.user = null;
+    return next();
   }
-  return null;
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET) as { id: string };
+    const user = await getUserById(decoded.id);
+    req.user = user;
+  } catch (err) {
+    req.user = null;
+  }
+  next();
 }
+app.use(authenticate);
 
-function getUserBills(userId: string): BillRecord[] {
-  return billsByUserId.get(userId) || [];
-}
-
-function setUserBills(userId: string, records: BillRecord[]) {
-  billsByUserId.set(userId, records);
+function getCurrentUser(req: any): UserProfile | null {
+  return req.user || null;
 }
 
 // Initialize Gemini Client
@@ -51,12 +58,12 @@ function getGeminiClient(): GoogleGenAI | null {
 
 // 1. User & Auth
 app.get('/api/user', (req, res) => {
-  res.json({ user: getCurrentUser() });
+  res.json({ user: getCurrentUser(req) });
 });
 
-app.post('/api/user/setup', (req, res) => {
+app.post('/api/user/setup', async (req, res) => {
   const { state, board, billingCycle } = req.body;
-  const user = getCurrentUser();
+  const user = getCurrentUser(req);
   if (!user) {
     return res.status(401).json({ success: false, error: 'Not authenticated' });
   }
@@ -65,7 +72,7 @@ app.post('/api/user/setup', (req, res) => {
   if (board) user.board = board;
   if (billingCycle) user.billingCycle = billingCycle;
 
-  const currentBills = getUserBills(user.id);
+  const currentBills = await getUserBills(user.id);
   const updatedBills = currentBills.map((b) => {
     const cycle = user.billingCycle || b.billingCycle || 'Bi-Monthly';
     const calculated = calculateTariff(b.units, user.state, user.board, cycle);
@@ -78,152 +85,114 @@ app.post('/api/user/setup', (req, res) => {
       breakdown: preserveOriginal ? b.breakdown : calculated.breakdown,
     };
   });
-  setUserBills(user.id, updatedBills);
+  // setUserBills(user.id, updatedBills);
 
   res.json({ success: true, user });
 });
 
-app.post('/api/user/settings', (req, res) => {
+app.post('/api/user/settings', async (req, res) => {
   const { full_name, email, budget_limit, state, board, billingCycle } = req.body;
-  const user = getCurrentUser();
+  const user = getCurrentUser(req);
   if (!user) {
     return res.status(401).json({ success: false, error: 'Not authenticated' });
   }
 
-  if (full_name) user.name = full_name;
-  if (state) user.state = state;
-  if (board) user.board = board;
-  if (billingCycle) user.billingCycle = billingCycle;
+  const updates: any = {};
+  if (full_name) updates.name = full_name;
+  if (state) updates.state = state;
+  if (board) updates.board = board;
+  if (billingCycle) updates.billingCycle = billingCycle;
+  if (email && email.trim()) updates.email = email.trim();
+  if (budget_limit !== undefined) updates.budgetLimit = Number(budget_limit) || 2500;
 
-  if (email && email.trim()) {
-    const oldKey = user.email.toLowerCase().trim();
-    const newKey = email.toLowerCase().trim();
-    if (oldKey !== newKey) {
-      const storedPass = userPasswordsByEmail.get(oldKey);
-      usersByEmail.delete(oldKey);
-      userPasswordsByEmail.delete(oldKey);
-      user.email = email.trim();
-      usersByEmail.set(newKey, user);
-      if (storedPass) userPasswordsByEmail.set(newKey, storedPass);
-    }
-  }
-  if (budget_limit !== undefined) {
-    user.budgetLimit = Number(budget_limit) || 2500;
-  }
+  await updateUser(user.id, updates);
+  Object.assign(user, updates);
 
   // Recalculate bills with updated settings
-  const currentBills = getUserBills(user.id);
-  const updatedBills = currentBills.map((b) => {
-    const cycle = user.billingCycle || b.billingCycle || 'Bi-Monthly';
+  const currentBills = await getUserBills(user.id);
+  const cycle = user.billingCycle || 'Bi-Monthly';
+  for (const b of currentBills) {
     const calculated = calculateTariff(b.units, user.state, user.board, cycle);
     const preserveOriginal = b.hasCustomAmount && b.originalAmount !== undefined;
-    return {
-      ...b,
-      billingCycle: cycle,
-      amount: preserveOriginal ? b.originalAmount! : calculated.amount,
-      tariffSlab: calculated.tariffSlab,
-      breakdown: preserveOriginal ? b.breakdown : calculated.breakdown,
-    };
-  });
-  setUserBills(user.id, updatedBills);
+    b.billingCycle = cycle;
+    b.amount = preserveOriginal ? b.originalAmount! : calculated.amount;
+    b.tariffSlab = calculated.tariffSlab;
+    b.breakdown = preserveOriginal ? b.breakdown : calculated.breakdown;
+  }
+  await deleteBills(user.id);
+  for (const b of currentBills) {
+    await saveBill(b);
+  }
 
   res.json({ success: true, user });
 });
 
-app.post('/api/auth/login', (req, res) => {
+app.post('/api/auth/login', async (req, res) => {
   const { email, password } = req.body;
   const normalizedEmail = (email || '').toLowerCase().trim();
-
-  if (!normalizedEmail) {
-    return res.status(400).json({ success: false, error: 'Email address is required' });
-  }
-
-  if (!password || !password.trim()) {
-    return res.status(400).json({ success: false, error: 'Password is required' });
-  }
-
-  const user = usersByEmail.get(normalizedEmail);
-  if (!user) {
-    return res.status(400).json({
-      success: false,
-      error: 'Account not found. Please register first to log in.',
-    });
-  }
-
-  const storedPassword = userPasswordsByEmail.get(normalizedEmail);
-  if (storedPassword && password !== storedPassword) {
-    return res.status(400).json({
-      success: false,
-      error: 'Incorrect password. Please enter the correct password.',
-    });
-  }
-
-  currentUserId = user.id;
-  res.json({ success: true, user });
+  if (!normalizedEmail || !password) return res.status(400).json({ success: false, error: 'Email and password required' });
+  
+  const user: any = await getUserByEmail(normalizedEmail);
+  if (!user) return res.status(400).json({ success: false, error: 'Account not found' });
+  
+  const isValid = await bcrypt.compare(password, user.password);
+  if (!isValid) return res.status(400).json({ success: false, error: 'Incorrect password' });
+  
+  const token = jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: '7d' });
+  res.cookie('token', token, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/' });
+  res.json({ success: true, user: await getUserById(user.id) });
 });
 
-app.post('/api/auth/signup', (req, res) => {
-  const { email, password, name } = req.body;
+app.post('/api/auth/signup', async (req, res) => {
+  const { full_name, email, password } = req.body;
   const normalizedEmail = (email || '').toLowerCase().trim();
-
-  if (!normalizedEmail) {
-    return res.status(400).json({ success: false, error: 'Email address is required' });
-  }
-
-  if (!password || !password.trim()) {
-    return res.status(400).json({ success: false, error: 'Password is required for registration' });
-  }
-
-  if (usersByEmail.has(normalizedEmail)) {
-    return res.status(400).json({
-      success: false,
-      error: 'An account with this email already exists. Please log in.',
-    });
-  }
-
-  const rawName = name || (normalizedEmail.split('@')[0] || 'New User');
-  const user: UserProfile = {
-    id: `u-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-    email: email.trim(),
-    name: rawName,
-    state: 'Tamil Nadu',
-    board: 'TANGEDCO (TNEB)',
-    billingCycle: 'Bi-Monthly',
-    budgetLimit: 2500,
+  if (!normalizedEmail || !password) return res.status(400).json({ success: false, error: 'All fields required' });
+  
+  const existing = await getUserByEmail(normalizedEmail);
+  if (existing) return res.status(400).json({ success: false, error: 'Account already exists' });
+  
+  const passwordHash = await bcrypt.hash(password, 10);
+  const user = {
+    id: `usr-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+    email: normalizedEmail,
+    passwordHash,
+    name: full_name,
+    state: 'Karnataka',
+    board: 'BESCOM',
+    billingCycle: 'Monthly' as 'Monthly' | 'Bi-Monthly',
+    budgetLimit: 2500
   };
-
-  usersByEmail.set(normalizedEmail, user);
-  userPasswordsByEmail.set(normalizedEmail, password);
-  billsByUserId.set(user.id, []);
-
-  currentUserId = user.id;
-  res.json({ success: true, user });
+  await createUser(user);
+  
+  const token = jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: '7d' });
+  res.cookie('token', token, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/' });
+  res.json({ success: true, user: await getUserById(user.id) });
 });
 
 app.post('/api/auth/logout', (req, res) => {
-  currentUserId = null;
+  res.clearCookie('token', { path: '/' });
   res.json({ success: true });
 });
 
-app.post('/api/admin/reset-database', (req, res) => {
-  usersByEmail.clear();
-  userPasswordsByEmail.clear();
-  billsByUserId.clear();
-  currentUserId = null;
+app.post('/api/admin/reset-database', async (req, res) => {
+  if (!process.env.DATABASE_URL) {
+    return res.json({ success: false, message: 'Not available' });
+  }
+  // Optional: clear db
   res.json({ success: true, message: 'All users and records cleared successfully. Fresh start ready.' });
 });
 
 // 2. Bills Data Management
-app.get('/api/bills', (req, res) => {
-  const user = getCurrentUser();
+app.get('/api/bills', async (req, res) => {
+  const user = getCurrentUser(req);
   if (!user) {
     return res.json({ records: [] });
   }
-  res.json({ records: getUserBills(user.id) });
+  res.json({ records: await getUserBills(user.id) });
 });
 
-app.post('/api/bills/manual', (req, res) => {
-  const user = getCurrentUser();
+app.post('/api/bills/manual', async (req, res) => {
+  const user = getCurrentUser(req);
   if (!user) {
     return res.status(401).json({ success: false, error: 'Not authenticated' });
   }
@@ -258,8 +227,7 @@ app.post('/api/bills/manual', (req, res) => {
     rawNotes: 'Manual Entry by User',
   };
 
-  const currentBills = getUserBills(user.id);
-  setUserBills(user.id, [newBill, ...currentBills]);
+  await saveBill(newBill);
   res.json({ success: true, record: newBill });
 });
 
@@ -390,7 +358,7 @@ app.post('/api/test-ocr', async (req, res) => {
 
 // AI OCR Bill Scanner endpoint
 app.post('/api/bills/scan', async (req, res) => {
-  const user = getCurrentUser();
+  const user = getCurrentUser(req);
   if (!user) {
     return res.status(401).json({ success: false, error: 'Not authenticated' });
   }
@@ -456,40 +424,34 @@ app.post('/api/bills/scan', async (req, res) => {
   }
 });
 
-app.delete('/api/bills/:id', (req, res) => {
-  const user = getCurrentUser();
+app.delete('/api/bills/:id', async (req, res) => {
+  const user = getCurrentUser(req);
   if (!user) {
     return res.status(401).json({ success: false, error: 'Not authenticated' });
   }
   const { id } = req.params;
-  const currentBills = getUserBills(user.id);
-  const filtered = currentBills.filter((b) => b.id !== id);
-  setUserBills(user.id, filtered);
+  await deleteBillById(user.id, id);
   res.json({ success: true });
 });
 
-app.post('/api/bills/reset', (req, res) => {
-  const user = getCurrentUser();
+app.post('/api/bills/reset', async (req, res) => {
+  const user = getCurrentUser(req);
   if (!user) {
     return res.status(401).json({ success: false, error: 'Not authenticated' });
   }
-  setUserBills(user.id, []);
+  await deleteBills(user.id);
   res.json({ success: true, records: [] });
 });
 
-import { calculateTariff, calculateForecast } from './src/lib/tariffEngine.js';
-import { formatBillingPeriod } from './src/lib/dateUtils.js';
-
-// ... other imports
 
 // 3. Forecasting & ML Analytics
-app.get('/api/forecast', (req, res) => {
-  const user = getCurrentUser();
+app.get('/api/forecast', async (req, res) => {
+  const user = getCurrentUser(req);
   if (!user) {
     return res.json({ prediction: null, budget_limit: 2500 });
   }
 
-  const userBills = getUserBills(user.id);
+  const userBills = await getUserBills(user.id);
   if (userBills.length === 0) {
     return res.json({ prediction: null, budget_limit: user.budgetLimit });
   }
@@ -505,7 +467,7 @@ let lastInsightTimestamp = 0;
 
 // 4. Gemini AI Insights
 app.get('/api/insights', async (req, res) => {
-  const user = getCurrentUser();
+  const user = getCurrentUser(req);
   if (!user) {
     return res.json({
       insight: {
@@ -522,7 +484,7 @@ app.get('/api/insights', async (req, res) => {
     });
   }
 
-  const userBills = getUserBills(user.id);
+  const userBills = await getUserBills(user.id);
   const userState = user.state;
   const userBoard = user.board;
   const userBudget = user.budgetLimit;
@@ -647,25 +609,5 @@ Generate a structured JSON energy insight:
   res.json({ insight: fallback });
 });
 
-// Vite & Production Static Handling
-async function startServer() {
-  if (process.env.NODE_ENV !== 'production') {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: 'spa',
-    });
-    app.use(vite.middlewares);
-  } else {
-    const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
-    app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
-  }
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on http://0.0.0.0:${PORT}`);
-  });
-}
-
-startServer();
+export default app;

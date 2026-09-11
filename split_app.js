@@ -1,4 +1,13 @@
-import app from './src/app.js';
+import fs from 'fs';
+import path from 'path';
+
+const serverTs = fs.readFileSync('server.ts', 'utf-8');
+
+const splitPoint = serverTs.indexOf('// Vite & Production Static Handling');
+
+const appTsContent = serverTs.substring(0, splitPoint) + '\nexport default app;\n';
+
+const serverTsContent = `import app from './src/app.js';
 import express from 'express';
 import path from 'path';
 
@@ -35,9 +44,18 @@ async function startServer() {
     });
   }
 
-  app.listen(Number(PORT), '0.0.0.0', () => {
-    console.log(`Server running on http://0.0.0.0:${PORT}`);
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(\`Server running on http://0.0.0.0:\${PORT}\`);
   });
 }
 
 startServer();
+`;
+
+fs.writeFileSync('src/app.ts', appTsContent);
+fs.writeFileSync('server.ts', serverTsContent);
+
+const apiIndexTs = `import app from '../src/app.js';\n\nexport default app;\n`;
+fs.writeFileSync('api/index.ts', apiIndexTs);
+
+console.log("Split successful");
